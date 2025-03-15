@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Distance Finder</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        input {
+            padding: 10px;
+            margin: 10px;
+            width: 80%;
+            border: none;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            background: #ff9800;
+            border: none;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background: #e68900;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-top: 20px;
+            border-radius: 10px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+</head>
+<body>
+    <div class="container">
+        <h2>Find Nearest Drivers</h2>
+        <input type="text" id="locationInput" placeholder="Enter a location">
+        <button onclick="findNearestDrivers()">Find Drivers</button>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        const map = L.map('map').setView([12.9716, 77.5946], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const drivers = [
+            { id: "9500", name: "Ravi", lat: 12.9766, lon: 77.5713 }, // Majestic
+            { id: "6724", name: "Suresh", lat: 12.8398, lon: 77.6770 }, // Electronic City
+            { id: "3132", name: "Arun", lat: 12.9716, lon: 77.7500 }, // Whitefield
+            { id: "3552", name: "Manoj", lat: 12.9352, lon: 77.6245 }, // Koramangala
+            { id: "7045", name: "Kiran", lat: 12.9784, lon: 77.6408 }, // Indiranagar
+            { id: "5479", name: "Prakash", lat: 12.9560, lon: 77.7011 }, // Marathahalli
+            { id: "1384", name: "Deepak", lat: 12.9177, lon: 77.6101 }, // BTM Layout
+            { id: "6913", name: "Rajesh", lat: 12.9250, lon: 77.5938 }, // Jayanagar
+            { id: "6767", name: "Sunil", lat: 13.0285, lon: 77.5307 }, // Yeshwanthpur
+            { id: "0970", name: "Vikram", lat: 13.0358, lon: 77.5970 }, // Hebbal
+            { id: "3979", name: "Anil", lat: 12.9902, lon: 77.6950 }, // KR Puram
+            { id: "1884", name: "Mahesh", lat: 12.9185, lon: 77.5738 }, // Banashankari
+            { id: "0771", name: "Harish", lat: 13.0078, lon: 77.5656 } // Malleswaram
+        ];
+
+        drivers.forEach(driver => {
+            L.marker([driver.lat, driver.lon]).addTo(map)
+                .bindPopup(`🚖 Driver ${driver.id} (${driver.name})`);
+        });
+
+        async function getCoordinates(location) {
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${location}, Bangalore`);
+            const data = await response.json();
+            if (data.length === 0) {
+                alert("Location not found. Try again.");
+                return null;
+            }
+            return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        }
+
+        function haversine(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const toRad = angle => (angle * Math.PI) / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        async function findNearestDrivers() {
+            const location = document.getElementById("locationInput").value;
+            if (!location) return alert("Please enter a location");
+            
+            const userCoords = await getCoordinates(location);
+            if (!userCoords) return;
+            
+            L.marker([userCoords.lat, userCoords.lon], { icon: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                iconSize: [30, 30]
+            }) }).addTo(map).bindPopup("📍 Entered Location").openPopup();
+            
+            drivers.forEach(driver => {
+                driver.distance = haversine(userCoords.lat, userCoords.lon, driver.lat, driver.lon);
+                L.marker([driver.lat, driver.lon]).addTo(map)
+                    .bindPopup(`🚖 Driver ${driver.id} (${driver.name})<br>📏 ${driver.distance.toFixed(2)} km away`);
+            });
+        }
+    </script>
+</body>
+</html>
